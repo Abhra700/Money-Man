@@ -1,0 +1,102 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and token balance",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "tokens": { "type": "number", "description": "Current token balance" },
+        "referralCode": { "type": "string", "description": "Unique referral code for the user" },
+        "referredBy": { "type": "string", "description": "UID of the user who referred this user" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastCheckIn": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "tokens", "referralCode", "role"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Available tasks for users to earn tokens",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "rewardTokens": { "type": "number" },
+        "type": { "type": "string", "enum": ["daily", "ad", "survey", "game", "referral", "quiz"] },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "title", "rewardTokens", "type", "active"]
+    },
+    "UserTask": {
+      "title": "UserTask",
+      "description": "Record of a user completing a task",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "taskId": { "type": "string" },
+        "tokensEarned": { "type": "number" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "taskId", "tokensEarned", "completedAt"]
+    },
+    "WithdrawalRequest": {
+      "title": "WithdrawalRequest",
+      "description": "User request to redeem tokens for rewards",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "amount": { "type": "number", "description": "Reward value in currency" },
+        "tokensDeducted": { "type": "number" },
+        "rewardType": { "type": "string", "enum": ["Google Play", "Paytm Cash", "UPI"] },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "adminNote": { "type": "string" }
+      },
+      "required": ["id", "userId", "amount", "tokensDeducted", "rewardType", "status", "createdAt"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "History of token additions and deductions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["earn", "redeem"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "type", "amount", "description", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Available tasks"
+    },
+    "/userTasks/{userTaskId}": {
+      "schema": "UserTask",
+      "description": "Completed tasks by users"
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": "WithdrawalRequest",
+      "description": "Redemption requests"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Token transaction history"
+    }
+  }
+}

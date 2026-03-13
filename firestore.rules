@@ -1,0 +1,105 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields: uid, email, displayName, photoURL, tokens, referralCode, referredBy, role, createdAt, lastCheckIn
+    //
+    // Collection: tasks
+    // Fields: id, title, description, rewardTokens, type, active
+    //
+    // Collection: userTasks
+    // Fields: userId, taskId, tokensEarned, completedAt
+    //
+    // Collection: withdrawals
+    // Fields: id, userId, userEmail, amount, tokensDeducted, rewardType, status, createdAt, updatedAt, adminNote
+    //
+    // Collection: transactions
+    // Fields: id, userId, type, amount, description, createdAt
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "abhramondal10@gmail.com" && request.auth.token.email_verified == true) ||
+          (request.auth.token.email == "abhram683@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'tokens', 'referralCode', 'role']) &&
+             data.uid is string &&
+             isValidEmail(data.email) &&
+             data.tokens is number &&
+             data.referralCode is string &&
+             data.role in ['user', 'admin'];
+    }
+
+    function isValidWithdrawal(data) {
+      return data.keys().hasAll(['id', 'userId', 'amount', 'tokensDeducted', 'rewardType', 'status', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.status == 'pending' &&
+             data.tokensDeducted > 0;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated(); // Allow leaderboard and profile viewing for authenticated users
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
+      allow update: if isAuthenticated() && (
+        (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) ||
+        isAdmin()
+      );
+    }
+
+    match /tasks/{taskId} {
+      allow read: if true; // Allow anyone to see available tasks (fixes seeding and initial load)
+      allow write: if isAdmin();
+    }
+
+    match /userTasks/{userTaskId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /withdrawals/{withdrawalId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && isValidWithdrawal(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+  }
+}
